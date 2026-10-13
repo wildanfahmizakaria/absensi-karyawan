@@ -26,3 +26,7 @@ dist-ssr/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Ignored Docs / Prompts
+EXECUTION-PROMPT.md
+

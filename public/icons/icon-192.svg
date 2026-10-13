@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Container -->
+  <rect width="192" height="192" rx="40" fill="url(#bgGrad)"/>
+  <!-- Decorative Ring -->
+  <circle cx="96" cy="96" r="68" stroke="rgba(255,255,255,0.15)" stroke-width="4" fill="none"/>
+  <!-- Central Emblem: Mandala Check Shield -->
+  <path d="M96 44 L136 60 V104 C136 128 119 146 96 154 C73 146 56 128 56 104 V60 Z" fill="white" fill-opacity="0.12"/>
+  <path d="M96 52 L128 65 V100 C128 120 114 136 96 142 C78 136 64 120 64 100 V65 Z" stroke="white" stroke-width="5" fill="none" stroke-linejoin="round"/>
+  <!-- Checkmark -->
+  <path d="M82 98 L92 108 L114 84" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Location Dot -->
+  <circle cx="96" cy="126" r="4.5" fill="#60A5FA"/>
+</svg>

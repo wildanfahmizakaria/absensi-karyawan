@@ -82,7 +82,8 @@ export const AttendanceVerificationModal = ({
     } else {
       stopCamera();
     }
-  }, [isOpen, startCamera, stopCamera, getLocation, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Handler Ambil Foto dari Stream
   const handleTakePhoto = async () => {
@@ -304,6 +305,11 @@ export const AttendanceVerificationModal = ({
                     autoPlay
                     playsInline
                     muted
+                    onLoadedMetadata={() => {
+                      if (videoRef.current) {
+                        videoRef.current.play().catch((e) => console.warn('Play on loadedmetadata:', e));
+                      }
+                    }}
                     className={`w-full h-full object-cover ${
                       facingMode === 'user' ? 'scale-x-[-1]' : ''
                     }`}
@@ -330,9 +336,19 @@ export const AttendanceVerificationModal = ({
 
                   {/* Indikator Status Kamera */}
                   {cameraStatus === 'requesting' && (
-                    <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center text-white text-xs gap-2">
+                    <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center text-white text-xs gap-3 p-4 text-center">
                       <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span>Mengaktifkan kamera live...</span>
+                      <span className="font-medium">Mengaktifkan kamera live...</span>
+                      <p className="text-[11px] text-slate-300 max-w-xs">
+                        Jika peramban menampilkan dialog izin kamera, pilih <strong>"Allow" / "Izinkan"</strong>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => startCamera()}
+                        className="text-[11px] text-blue-400 hover:underline mt-1 bg-black/40 px-3 py-1.5 rounded-lg border border-white/10"
+                      >
+                        Kamera belum muncul? Klik untuk coba lagi
+                      </button>
                     </div>
                   )}
 
@@ -381,26 +397,24 @@ export const AttendanceVerificationModal = ({
                   <IconMapPin className="w-4 h-4 text-primary" />
                   <span>Status Lokasi GPS:</span>
                 </div>
-                {geoStatus === 'locating' && (
-                  <span className="text-blue-600 flex items-center gap-1 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
-                    Mencari koordinat...
-                  </span>
-                )}
-                {geoStatus === 'success' && coords && (
+                {coords ? (
                   <span className="text-emerald-700 font-semibold flex items-center gap-1">
                     <IconCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
                     Koordinat Siap Direkam
                   </span>
-                )}
-                {geoStatus === 'error' && (
+                ) : geoStatus === 'locating' ? (
+                  <span className="text-blue-600 flex items-center gap-1 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
+                    Mencari koordinat...
+                  </span>
+                ) : geoStatus === 'error' ? (
                   <button
-                    onClick={() => getLocation()}
+                    onClick={() => getLocation(true)}
                     className="text-rose-600 hover:underline font-medium"
                   >
                     Coba Lagi
                   </button>
-                )}
+                ) : null}
               </div>
 
               {coords ? (

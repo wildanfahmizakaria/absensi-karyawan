@@ -6,16 +6,45 @@ import { useState, useRef, useCallback, useEffect } from 'react';
  * - Menggunakan stream live kamera perangkat (getUserMedia)
  * - Foto diambil langsung dari stream frame video ke canvas (bukan upload file galeri)
  * - Menangani error izin ditolak, kamera tidak ditemukan, atau insecure context
+ * - Stabil terhadap re-render loop React
  */
 export const useCamera = () => {
   const [stream, setStream] = useState(null);
   const [status, setStatus] = useState('idle'); // 'idle' | 'requesting' | 'active' | 'denied' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [facingMode, setFacingMode] = useState('user'); // 'user' (depan/swafoto) | 'environment' (belakang)
+  
+  const streamRef = useRef(null);
   const videoRef = useRef(null);
+  const facingModeRef = useRef(facingMode);
 
-  // Memulai stream kamera live
-  const startCamera = useCallback(async (customFacingMode = facingMode) => {
+  // Selaraskan ref facingMode
+  useEffect(() => {
+    facingModeRef.current = facingMode;
+  }, [facingMode]);
+
+  // Hentikan stream dan bebaskan perangkat kamera
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (e) {
+          console.warn('Gagal menghentikan track kamera:', e);
+        }
+      });
+      streamRef.current = null;
+    }
+    setStream(null);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setStatus('idle');
+  }, []);
+
+  // Memulai stream kamera live dengan multi-tier fallback
+  const startCamera = useCallback(async (customFacingMode) => {
+    const targetFacingMode = customFacingMode || facingModeRef.current || 'user';
     setStatus('requesting');
     setErrorMessage('');
 
@@ -29,48 +58,69 @@ export const useCamera = () => {
     }
 
     try {
-      // Hentikan stream sebelumnya jika ada
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      // Hentikan stream aktif sebelumnya jika ada
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
 
-      const constraints = {
-        video: {
-          facingMode: customFacingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      };
+      let newStream = null;
 
-      let newStream;
+      // Tier 1: Coba resolusi ideal dan facingMode yang diinginkan
       try {
-        newStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (constraintErr) {
-        // Fallback jika resolusi ideal 720p/1080p tidak didukung webcam perangkat
-        if (constraintErr.name === 'OverconstrainedError' || constraintErr.name === 'ConstraintNotSatisfiedError') {
-          newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        } else {
-          throw constraintErr;
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: targetFacingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch (errTier1) {
+        console.warn('Kamera Tier 1 (resolusi ideal) gagal, mencoba Tier 2 (facingMode murni):', errTier1);
+        
+        // Tier 2: Tanpa batas resolusi ideal (mengatasi ponsel dengan orientasi portrait 720x1280)
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: targetFacingMode },
+            audio: false,
+          });
+        } catch (errTier2) {
+          console.warn('Kamera Tier 2 gagal, mencoba Tier 3 (video standar):', errTier2);
+          
+          // Tier 3: Menggunakan kamera video apapun yang tersedia di sistem
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
         }
       }
 
+      if (!newStream) {
+        throw new Error('Tidak ada stream video yang diterima dari browser.');
+      }
+
+      streamRef.current = newStream;
       setStream(newStream);
       setStatus('active');
 
+      // Hubungkan ke elemen video langsung jika sudah terpasang di DOM
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
-        videoRef.current.play().catch((err) => {
-          console.warn('Video autoplay dicegah oleh browser:', err);
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.play().catch((playErr) => {
+          console.warn('Video play autoplay dicegah oleh browser:', playErr);
         });
       }
+
       return true;
     } catch (err) {
       console.error('Gagal mengakses kamera:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setStatus('denied');
         setErrorMessage(
-          'Izin akses kamera ditolak. Silakan berikan izin kamera pada pengaturan izin situs browser Anda untuk melakukan absensi.'
+          'Izin akses kamera ditolak. Silakan izinkan akses kamera pada pengaturan peramban / ikon gembok di bilah URL.'
         );
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setStatus('error');
@@ -85,35 +135,35 @@ export const useCamera = () => {
       } else {
         setStatus('error');
         setErrorMessage(
-          `Gagal memulai kamera: ${err.message || 'Kesalahan tidak diketahui'}`
+          `Gagal memulai kamera: ${err.message || 'Kesalahan perangkat tidak diketahui'}`
         );
       }
       return false;
     }
-  }, [facingMode, stream]);
+  }, []);
 
-  // Menghentikan stream kamera dan membebaskan hardware
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+  // Hubungkan videoRef secara otomatis setiap kali stream atau videoRef diperbarui
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
+      videoRef.current.play().catch((playErr) => {
+        console.warn('Video play sync error:', playErr);
+      });
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setStatus('idle');
   }, [stream]);
 
   // Beralih antara kamera depan (swafoto) dan belakang
   const toggleFacingMode = useCallback(() => {
-    const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    const nextMode = facingModeRef.current === 'user' ? 'environment' : 'user';
     setFacingMode(nextMode);
     startCamera(nextMode);
-  }, [facingMode, startCamera]);
+  }, [startCamera]);
 
   // Mengambil frame foto langsung dari stream video ke Blob JPEG
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || status !== 'active') {
+    if (!videoRef.current || !streamRef.current) {
       return Promise.resolve(null);
     }
 
@@ -125,8 +175,8 @@ export const useCamera = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return Promise.resolve(null);
 
-    // Jika kamera depan, buat cermin (mirror) agar foto swafoto natural
-    if (facingMode === 'user') {
+    // Jika kamera depan, buat efek cermin agar swafoto natural
+    if (facingModeRef.current === 'user') {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
@@ -147,16 +197,17 @@ export const useCamera = () => {
         0.88
       );
     });
-  }, [facingMode, status]);
+  }, []);
 
   // Bersihkan stream jika unmount
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
     };
-  }, [stream]);
+  }, []);
 
   return {
     videoRef,

@@ -12,6 +12,7 @@ import {
   IconAlertTriangle,
   IconX,
   IconRefreshCw,
+  IconUser,
 } from '../common/Icons';
 import {
   calculateMinCheckOutTime,
@@ -172,12 +173,12 @@ export const AttendanceVerificationModal = ({
               <h2 id="modal-verification-title" className="text-base sm:text-lg font-bold text-slate-900">
                 Verifikasi {actionTitle}
               </h2>
-              <Badge variant="success" size="sm">
-                SOT v0.2
+              <Badge variant="warning" size="sm">
+                SIMULASI FASE 1
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              CV Mandala Mahardika • Bukti Swafoto Live & Koordinat GPS
+              CV Mandala Mahardika • Kamera & Lokasi Mode Mock SOT Fase 1
             </p>
           </div>
           <button
@@ -295,151 +296,80 @@ export const AttendanceVerificationModal = ({
               </div>
             )}
 
-            {/* Video Viewport / Photo Preview */}
+            {/* Banner Kontrak SOT Fase 1 */}
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                <span><strong>Kontrak SOT Fase 1:</strong> Akses hardware kamera & sensor GPS live dinonaktifkan (aktif di Fase 3). Presensi menggunakan simulasi mock data.</span>
+              </div>
+            </div>
+
+            {/* Video Viewport / Photo Preview (Simulasi SOT Fase 1) */}
             <div className="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-800">
               {/* Jika masih dalam mode CAPTURE */}
               {step === 'CAPTURE' && (
-                <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    onLoadedMetadata={() => {
-                      if (videoRef.current) {
-                        videoRef.current.play().catch((e) => console.warn('Play on loadedmetadata:', e));
-                      }
-                    }}
-                    className={`w-full h-full object-cover ${
-                      facingMode === 'user' ? 'scale-x-[-1]' : ''
-                    }`}
-                  />
+                <div className="w-full h-full flex flex-col items-center justify-center relative bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 p-4">
+                  {/* Siluet Wajah Karyawan Simulasi */}
+                  <div className="w-28 h-28 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400 mb-1 shadow-inner">
+                    <IconUser className="w-16 h-16 text-slate-500" />
+                  </div>
 
                   {/* Panduan Bingkai Wajah (Face Guide Oval) */}
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-48 h-60 border-2 border-white/60 border-dashed rounded-full shadow-lg"></div>
-                    <span className="absolute bottom-3 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-[11px] font-medium tracking-wide">
-                      Posisikan wajah Anda di dalam oval
+                    <div className="w-48 h-60 border-2 border-amber-400/60 border-dashed rounded-full shadow-lg"></div>
+                    <span className="absolute bottom-3 bg-black/75 backdrop-blur-sm text-amber-300 px-3 py-1 rounded-full text-[11px] font-medium tracking-wide">
+                      Posisikan Wajah (Simulasi SOT Fase 1)
                     </span>
                   </div>
 
-                  {/* Tombol Balik Kamera (Depan / Belakang) */}
-                  <button
-                    type="button"
-                    onClick={toggleFacingMode}
-                    className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-xl text-xs backdrop-blur-sm transition-colors flex items-center gap-1.5"
-                    title="Ganti kamera depan / belakang"
-                  >
-                    <IconCamera className="w-4 h-4" />
-                    <span className="text-[10px]">Balik</span>
-                  </button>
+                  {/* Watermark Simulasi */}
+                  <span className="absolute top-3 left-3 bg-rose-600/90 text-white px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase">
+                    MOCK DATA FASE 1
+                  </span>
 
-                  {/* Indikator Status Kamera */}
-                  {cameraStatus === 'requesting' && (
-                    <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center text-white text-xs gap-3 p-4 text-center">
-                      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="font-medium">Mengaktifkan kamera live...</span>
-                      <p className="text-[11px] text-slate-300 max-w-xs">
-                        Jika peramban menampilkan dialog izin kamera, pilih <strong>"Allow" / "Izinkan"</strong>.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => startCamera()}
-                        className="text-[11px] text-blue-400 hover:underline mt-1 bg-black/40 px-3 py-1.5 rounded-lg border border-white/10"
-                      >
-                        Kamera belum muncul? Klik untuk coba lagi
-                      </button>
-                    </div>
-                  )}
-
-                  {cameraStatus === 'denied' && (
-                    <div className="absolute inset-0 bg-slate-900/90 p-5 flex flex-col items-center justify-center text-center text-white gap-3">
-                      <IconAlertTriangle className="w-8 h-8 text-amber-400" />
-                      <p className="text-xs text-slate-200">{cameraError}</p>
-                      <Button variant="secondary" size="sm" onClick={() => startCamera()}>
-                        Coba Lagi Buka Kamera
-                      </Button>
-                    </div>
-                  )}
-
-                  {cameraStatus === 'error' && (
-                    <div className="absolute inset-0 bg-slate-900/90 p-5 flex flex-col items-center justify-center text-center text-white gap-3">
-                      <IconAlertCircle className="w-8 h-8 text-rose-400" />
-                      <p className="text-xs text-slate-200">{cameraError}</p>
-                      <Button variant="secondary" size="sm" onClick={() => startCamera()}>
-                        Ulangi
-                      </Button>
-                    </div>
-                  )}
-                </>
+                  {/* Jam Berjalan Simulasi */}
+                  <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-slate-300 px-2.5 py-0.5 rounded text-[11px] font-mono">
+                    CV Mandala Mahardika
+                  </span>
+                </div>
               )}
 
-              {/* Jika dalam mode CONFIRM (Preview Hasil Foto) */}
+              {/* Jika dalam mode CONFIRM (Preview Hasil Foto Simulasi) */}
               {step !== 'CAPTURE' && capturedPhoto && (
                 <div className="w-full h-full relative">
                   <img
                     src={capturedPhoto.dataUrl}
-                    alt="Swafoto Live"
+                    alt="Swafoto Simulasi"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-3 left-3 bg-emerald-600/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-md">
+                  <div className="absolute top-3 left-3 bg-amber-600/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-md">
                     <IconCheckCircle className="w-3.5 h-3.5" />
-                    <span>Swafoto Diambil dari Stream</span>
+                    <span>Swafoto Simulasi SOT Fase 1</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Status Rekaman Geolokasi GPS */}
+            {/* Status Lokasi Presensi (Mode SOT Fase 1) */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                  <IconMapPin className="w-4 h-4 text-primary" />
-                  <span>Status Lokasi GPS:</span>
+                  <IconMapPin className="w-4 h-4 text-amber-600" />
+                  <span>Lokasi Presensi:</span>
                 </div>
-                {coords ? (
-                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                    <IconCheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    Koordinat Siap Direkam
-                  </span>
-                ) : geoStatus === 'locating' ? (
-                  <span className="text-blue-600 flex items-center gap-1 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
-                    Mencari koordinat...
-                  </span>
-                ) : geoStatus === 'error' ? (
-                  <button
-                    onClick={() => getLocation(true)}
-                    className="text-rose-600 hover:underline font-medium"
-                  >
-                    Coba Lagi
-                  </button>
-                ) : null}
+                <span className="text-amber-800 font-semibold flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  <IconCheckCircle className="w-3.5 h-3.5 text-amber-600" />
+                  Koordinat Acuan SOT Fase 1
+                </span>
               </div>
 
-              {coords ? (
-                <div className="font-mono text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span>Lat: {coords.latitude}, Lng: {coords.longitude}</span>
-                  <span className="text-emerald-600 font-sans font-medium">
-                    Akurasi: ±{coords.accuracy_m}m {coords.isSimulated ? '(Simulasi PC)' : '(GPS)'}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
-                  <span>{geoError || 'Sensor GPS perangkat sedang disinkronkan...'}</span>
-                  <button
-                    type="button"
-                    onClick={useSimulatedLocation}
-                    className="text-primary hover:underline text-[10px] ml-2"
-                    title="Gunakan koordinat acuan jika di perangkat komputer tanpa sensor GPS"
-                  >
-                    [Gunakan Koordinat PC]
-                  </button>
-                </div>
-              )}
+              <div className="font-mono text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:justify-between gap-1">
+                <span>Lat: {coords?.latitude || -6.982614}, Lng: {coords?.longitude || 110.409152}</span>
+                <span className="text-amber-700 font-sans font-medium">Kantor CV Mandala Mahardika [MOCK]</span>
+              </div>
 
               <p className="text-[10px] text-slate-400">
-                *Sesuai SOT v0.2: Perekaman GPS wajib tanpa batasan radius kantor. Koordinat dicatat sebagai bukti otentik kehadiran.
+                *Kontrak SOT Fase 1: Sensor GPS live perangkat dinonaktifkan (fitur sensor aktif pada Fase 3).
               </p>
             </div>
 
@@ -459,11 +389,10 @@ export const AttendanceVerificationModal = ({
                     variant="primary"
                     size="lg"
                     className="flex-2 shadow-float"
-                    disabled={cameraStatus !== 'active'}
                     onClick={handleTakePhoto}
                     icon={IconCamera}
                   >
-                    Ambil Swafoto
+                    Ambil Swafoto (Simulasi)
                   </Button>
                 </div>
               )}

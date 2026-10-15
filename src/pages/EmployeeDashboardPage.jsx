@@ -153,20 +153,19 @@ export const EmployeeDashboardPage = () => {
             Senin, 12 Oktober 2026
           </Badge>
           <Button
-            variant="primary"
+            variant="outline"
             size="sm"
-            onClick={() => handleOpenVerification(todayStatus.status === 'SUDAH_MASUK' ? 'CHECK_OUT' : 'CHECK_IN')}
-            title="Buka dan aktifkan kamera live serta deteksi lokasi GPS sekarang"
-            icon={IconCamera}
+            onClick={handleRefreshData}
+            title="Segarkan data status kehadiran"
           >
-            Aktifkan Kamera & GPS
+            Segarkan
           </Button>
           {todayStatus.status !== 'BELUM_ABSEN' && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleResetToday}
-              title="Reset status hari ini untuk mencoba ulang absensi"
+              title="Reset status hari ini untuk mencoba ulang simulasi absensi"
             >
               Reset Simulasi
             </Button>

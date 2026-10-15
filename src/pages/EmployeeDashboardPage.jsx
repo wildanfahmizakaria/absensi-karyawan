@@ -105,6 +105,20 @@ export const EmployeeDashboardPage = () => {
     }, 400);
   };
 
+  // Reset status simulasi hari ini agar memudahkan pengujian berulang
+  const handleResetToday = () => {
+    sessionStorage.removeItem(`mandala_attendance_today_${currentUser?.id || 'EMP-001'}`);
+    setTodayStatus({
+      status: 'BELUM_ABSEN',
+      checkInTime: null,
+      checkOutTime: null,
+      minCheckOutTime: null,
+      workDuration: null,
+      durationStatus: null,
+      durationLabel: null,
+    });
+  };
+
   const recentHistory = historyList.slice(0, 3);
 
   if (isLoadingData) {
@@ -133,19 +147,30 @@ export const EmployeeDashboardPage = () => {
             {currentUser.department} • ID: {currentUser.id}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="primary" size="md">
             <IconCalendar className="w-3.5 h-3.5 mr-1" />
             Senin, 12 Oktober 2026
           </Badge>
           <Button
-            variant="outline"
+            variant="primary"
             size="sm"
-            onClick={handleRefreshData}
-            title="Segarkan data status kehadiran"
+            onClick={() => handleOpenVerification(todayStatus.status === 'SUDAH_MASUK' ? 'CHECK_OUT' : 'CHECK_IN')}
+            title="Buka dan aktifkan kamera live serta deteksi lokasi GPS sekarang"
+            icon={IconCamera}
           >
-            Segarkan
+            Aktifkan Kamera & GPS
           </Button>
+          {todayStatus.status !== 'BELUM_ABSEN' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetToday}
+              title="Reset status hari ini untuk mencoba ulang absensi"
+            >
+              Reset Simulasi
+            </Button>
+          )}
         </div>
       </div>
 

@@ -25,51 +25,60 @@ export const useGeolocation = () => {
         return;
       }
 
-      const options = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+      const attemptFetch = (isHighAccuracy = true) => {
+        const options = {
+          enableHighAccuracy: isHighAccuracy,
+          timeout: isHighAccuracy ? 8000 : 15000,
+          maximumAge: isHighAccuracy ? 0 : 60000,
+        };
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const locationData = {
+              latitude: Number(position.coords.latitude.toFixed(6)),
+              longitude: Number(position.coords.longitude.toFixed(6)),
+              accuracy_m: Math.round(position.coords.accuracy || 15),
+              timestamp: new Date(position.timestamp).toISOString(),
+            };
+
+            setCoords(locationData);
+            setStatus('success');
+            resolve({ success: true, coords: locationData });
+          },
+          (error) => {
+            // Jika mode akurasi tinggi gagal/timeout di PC tanpa sensor satelit GPS, coba standar (Wi-Fi/jaringan)
+            if (isHighAccuracy && (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE)) {
+              attemptFetch(false);
+              return;
+            }
+
+            let errText = '';
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errText =
+                  'Izin akses lokasi GPS ditolak oleh pengguna atau browser. Silakan aktifkan izin lokasi untuk melakukan absensi.';
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errText =
+                  'Sinyal lokasi GPS perangkat tidak tersedia atau sedang lemah.';
+                break;
+              case error.TIMEOUT:
+                errText =
+                  'Waktu pencarian koordinat lokasi habis (timeout). Silakan coba lagi.';
+                break;
+              default:
+                errText = `Gagal memperoleh lokasi: ${error.message || 'Kesalahan sensor'}`;
+            }
+
+            setStatus('error');
+            setErrorMessage(errText);
+            resolve({ success: false, error: errText });
+          },
+          options
+        );
       };
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const locationData = {
-            latitude: Number(position.coords.latitude.toFixed(6)),
-            longitude: Number(position.coords.longitude.toFixed(6)),
-            accuracy_m: Math.round(position.coords.accuracy || 10),
-            timestamp: new Date(position.timestamp).toISOString(),
-          };
-
-          setCoords(locationData);
-          setStatus('success');
-          resolve({ success: true, coords: locationData });
-        },
-        (error) => {
-          let errText = '';
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errText =
-                'Izin akses lokasi GPS ditolak oleh pengguna atau browser. Silakan aktifkan izin lokasi untuk melakukan absensi.';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errText =
-                'Sinyal lokasi GPS perangkat tidak tersedia atau sedang lemah.';
-              break;
-            case error.TIMEOUT:
-              errText =
-                'Waktu pencarian koordinat lokasi habis (timeout). Silakan coba lagi.';
-              break;
-            default:
-              errText = `Gagal memperoleh lokasi: ${error.message || 'Kesalahan sensor'}`;
-          }
-
-          // Jika gagal pada perangkat desktop yang tidak memiliki GPS hardware, sediakan opsi simulasi fallback
-          setStatus('error');
-          setErrorMessage(errText);
-          resolve({ success: false, error: errText });
-        },
-        options
-      );
+      attemptFetch(true);
     });
   }, []);
 

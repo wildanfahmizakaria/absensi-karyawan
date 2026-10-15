@@ -43,7 +43,18 @@ export const useCamera = () => {
         audio: false,
       };
 
-      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      let newStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (constraintErr) {
+        // Fallback jika resolusi ideal 720p/1080p tidak didukung webcam perangkat
+        if (constraintErr.name === 'OverconstrainedError' || constraintErr.name === 'ConstraintNotSatisfiedError') {
+          newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } else {
+          throw constraintErr;
+        }
+      }
+
       setStream(newStream);
       setStatus('active');
 

@@ -50,7 +50,7 @@ export const ReportsPage = () => {
     try {
       const [empRes, attRes] = await Promise.all([
         employeeApi.getEmployees(),
-        attendanceApi.getAttendanceHistory(),
+        attendanceApi.getAttendanceHistory({ page: 1, limit: 100 }),
       ]);
 
       if (empRes && empRes.data) {
@@ -248,7 +248,7 @@ export const ReportsPage = () => {
               Laporan & Ekspor Kehadiran
             </h1>
             <Badge variant="success" size="sm">
-              SOT v0.2
+              Live API
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">

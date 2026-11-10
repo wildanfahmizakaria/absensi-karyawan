@@ -21,7 +21,7 @@ export const RoleSwitcher = () => {
   return (
     <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
       <span className="text-[11px] font-semibold text-slate-500 uppercase px-2 hidden sm:inline">
-        Simulasi Peran:
+        Pilih Akun:
       </span>
       {roles.map((r) => {
         const Icon = r.icon;

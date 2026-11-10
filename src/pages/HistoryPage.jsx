@@ -33,7 +33,9 @@ export const HistoryPage = () => {
     setIsLoading(true);
     try {
       const res = await attendanceApi.getAttendanceHistory({
-        employeeId: currentRole === 'employee' ? currentUser?.id : undefined,
+        page: 1,
+        limit: 100,
+        durationStatus: selectedStatus !== 'ALL' ? selectedStatus : undefined,
       });
       if (res && res.data) {
         setHistoryList(res.data);
@@ -47,7 +49,7 @@ export const HistoryPage = () => {
 
   useEffect(() => {
     loadHistory();
-  }, [currentUser, currentRole]);
+  }, [currentUser, currentRole, selectedStatus]);
 
   useEffect(() => {
     if (!selectedDetail) return;
@@ -217,8 +219,8 @@ export const HistoryPage = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               {currentRole === 'employee' ? 'Riwayat Absensi Saya' : 'Monitoring & Riwayat Absensi'}
             </h1>
-            <Badge variant="mock" size="sm">
-              SOT v0.2
+            <Badge variant="success" size="sm">
+              Live API
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -229,7 +231,7 @@ export const HistoryPage = () => {
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-auto">
           <button
             onClick={() => setSelectedStatus('ALL')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -241,24 +243,34 @@ export const HistoryPage = () => {
             Semua ({historyList.length})
           </button>
           <button
-            onClick={() => setSelectedStatus('TEPAT_WAKTU')}
+            onClick={() => setSelectedStatus('MEETS_MINIMUM')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              selectedStatus === 'TEPAT_WAKTU'
+              selectedStatus === 'MEETS_MINIMUM'
                 ? 'bg-white text-emerald-600 shadow-xs font-semibold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Tepat Waktu
+            Memenuhi (≥ 510m)
           </button>
           <button
-            onClick={() => setSelectedStatus('TERLAMBAT')}
+            onClick={() => setSelectedStatus('BELOW_MINIMUM')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              selectedStatus === 'TERLAMBAT'
+              selectedStatus === 'BELOW_MINIMUM'
                 ? 'bg-white text-amber-600 shadow-xs font-semibold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Terlambat
+            Kurang (&lt; 510m)
+          </button>
+          <button
+            onClick={() => setSelectedStatus('IN_PROGRESS')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              selectedStatus === 'IN_PROGRESS'
+                ? 'bg-white text-blue-600 shadow-xs font-semibold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Sedang Berjalan
           </button>
         </div>
       </div>

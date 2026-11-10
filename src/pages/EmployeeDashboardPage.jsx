@@ -8,10 +8,6 @@ import { DashboardSkeleton } from '../components/common/Skeleton';
 import { AttendanceVerificationModal } from '../components/attendance/AttendanceVerificationModal';
 import { attendanceApi } from '../services/attendanceApi';
 import {
-  MOCK_WORK_SCHEDULE,
-  MOCK_ATTENDANCE_HISTORY,
-} from '../data/mockData';
-import {
   calculateMinCheckOutTime,
   evaluateWorkDuration,
   formatDurationHuman,
@@ -25,14 +21,14 @@ import {
   IconCalendar,
   IconChevronRight,
   IconUser,
-  IconAlertCircle,
+  IconShield,
 } from '../components/common/Icons';
 
 export const EmployeeDashboardPage = () => {
   const { currentUser } = useAuth();
   const { navigateTo } = useNavigation();
 
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [liveCurrentTime, setLiveCurrentTime] = useState(getCurrentWIBString);
   const [todayStatus, setTodayStatus] = useState({
     status: 'BELUM_ABSEN', // 'BELUM_ABSEN' | 'SUDAH_MASUK' | 'SELESAI'
@@ -44,11 +40,20 @@ export const EmployeeDashboardPage = () => {
     durationLabel: null,
   });
 
-  // Timer pembaruan waktu berjalan setiap 5 detik
+  const [monthlySummary, setMonthlySummary] = useState({
+    total_sessions: 0,
+    total_hours: '0.0',
+    meets_minimum_count: 0,
+    below_minimum_count: 0,
+  });
+
+  const [historyList, setHistoryList] = useState([]);
+
+  // Timer pembaruan waktu berjalan setiap detik/5 detik
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveCurrentTime(getCurrentWIBString());
-    }, 5000);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -57,17 +62,62 @@ export const EmployeeDashboardPage = () => {
     actionType: 'CHECK_IN', // 'CHECK_IN' | 'CHECK_OUT'
   });
 
-  const [historyList, setHistoryList] = useState(MOCK_ATTENDANCE_HISTORY);
+  // Ambil status absensi hari ini & dashboard data saat mount
+  const fetchDashboardData = async () => {
+    setIsLoadingData(true);
+    try {
+      const [todayRes, dashRes] = await Promise.all([
+        attendanceApi.getTodayStatus(currentUser?.id),
+        attendanceApi.getEmployeeDashboard(),
+      ]);
 
-  // Ambil status absensi hari ini saat mount
-  useEffect(() => {
-    const fetchToday = async () => {
-      const res = await attendanceApi.getTodayStatus(currentUser?.id || 'EMP-001');
-      if (res.data) {
-        setTodayStatus(res.data);
+      if (todayRes && todayRes.data) {
+        setTodayStatus(todayRes.data);
       }
-    };
-    fetchToday();
+
+      if (dashRes && dashRes.data) {
+        if (dashRes.data.monthly_summary) {
+          setMonthlySummary(dashRes.data.monthly_summary);
+        }
+        if (dashRes.data.recent_history) {
+          const formatted = dashRes.data.recent_history.map((row) => {
+            const checkInTime = row.check_in_at ? row.check_in_at.split(' ')[1] || row.check_in_at : '-';
+            const checkOutTime = row.check_out_at ? row.check_out_at.split(' ')[1] || row.check_out_at : '-';
+            const dateStr = row.check_in_at ? row.check_in_at.split(' ')[0] : '-';
+
+            let statusLabel = 'Sedang Berjalan';
+            let variant = 'warning';
+            if (row.duration_status === 'MEETS_MINIMUM') {
+              statusLabel = 'Target Terpenuhi (≥ 510m)';
+              variant = 'success';
+            } else if (row.duration_status === 'BELOW_MINIMUM') {
+              statusLabel = 'Kurang Durasi (< 510m)';
+              variant = 'warning';
+            }
+
+            return {
+              id: `ATT-${row.id}`,
+              date: dateStr,
+              checkIn: `${checkInTime} WIB`,
+              checkOut: checkOutTime !== '-' ? `${checkOutTime} WIB` : '-',
+              status: row.duration_status,
+              statusLabel,
+              variant,
+              notes: row.notes,
+            };
+          });
+          setHistoryList(formatted);
+        }
+      }
+    } catch (err) {
+      console.error('Gagal mengambil data dashboard karyawan:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
   }, [currentUser]);
 
   // Handler buka modal absensi live
@@ -80,46 +130,19 @@ export const EmployeeDashboardPage = () => {
 
   // Handler saat absensi sukses dikirim
   const handleAttendanceSuccess = (transaction) => {
-    if (transaction.type === 'CHECK_IN') {
-      setTodayStatus((prev) => ({
-        ...prev,
-        status: 'SUDAH_MASUK',
-        checkInTime: transaction.checkIn,
-      }));
-    } else {
-      setTodayStatus((prev) => ({
-        ...prev,
-        status: 'SELESAI',
-        checkOutTime: transaction.checkOut,
-      }));
-    }
-
-    // Tambahkan transaksi baru ke riwayat teratas
-    setHistoryList((prev) => [transaction, ...prev]);
+    fetchDashboardData();
   };
 
   const handleRefreshData = () => {
-    setIsLoadingData(true);
-    setTimeout(() => {
-      setIsLoadingData(false);
-    }, 400);
+    fetchDashboardData();
   };
 
-  // Reset status simulasi hari ini agar memudahkan pengujian berulang
-  const handleResetToday = () => {
-    sessionStorage.removeItem(`mandala_attendance_today_${currentUser?.id || 'EMP-001'}`);
-    setTodayStatus({
-      status: 'BELUM_ABSEN',
-      checkInTime: null,
-      checkOutTime: null,
-      minCheckOutTime: null,
-      workDuration: null,
-      durationStatus: null,
-      durationLabel: null,
-    });
-  };
-
-  const recentHistory = historyList.slice(0, 3);
+  const todayDateString = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
   if (isLoadingData) {
     return <DashboardSkeleton />;
@@ -127,7 +150,7 @@ export const EmployeeDashboardPage = () => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-fadeIn">
-      {/* Modal Verifikasi Absensi Kamera Live & GPS (Fase 3) */}
+      {/* Modal Verifikasi Absensi Kamera Live & GPS */}
       <AttendanceVerificationModal
         isOpen={verificationModal.isOpen}
         onClose={() => setVerificationModal({ ...verificationModal, isOpen: false })}
@@ -141,16 +164,16 @@ export const EmployeeDashboardPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Halo, {currentUser.name}! 👋
+            Halo, {currentUser?.name || 'Karyawan'}! 👋
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {currentUser.department} • ID: {currentUser.id}
+            {currentUser?.department || 'Operasional'} • ID: {currentUser?.employee_code || currentUser?.id}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="primary" size="md">
             <IconCalendar className="w-3.5 h-3.5 mr-1" />
-            Senin, 12 Oktober 2026
+            {todayDateString}
           </Badge>
           <Button
             variant="outline"
@@ -160,16 +183,6 @@ export const EmployeeDashboardPage = () => {
           >
             Segarkan
           </Button>
-          {todayStatus.status !== 'BELUM_ABSEN' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetToday}
-              title="Reset status hari ini untuk mencoba ulang simulasi absensi"
-            >
-              Reset Simulasi
-            </Button>
-          )}
         </div>
       </div>
 
@@ -182,7 +195,7 @@ export const EmployeeDashboardPage = () => {
                 Status Kehadiran Hari Ini
               </span>
               <Badge variant="primary" size="xs">
-                Minimal Kerja: 8 Jam 30 Menit
+                Target Durasi: Minimal 8 Jam 30 Menit (510m)
               </Badge>
             </div>
 
@@ -196,7 +209,7 @@ export const EmployeeDashboardPage = () => {
                   </h2>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Absen masuk bebas jam berapapun. Target minimal absen pulang adalah <strong>8 jam 30 menit</strong> setelah jam absen masuk Anda.
+                  Absen masuk bebas jam berapapun. Target minimal absen pulang adalah <strong>8 jam 30 menit (510 menit)</strong> setelah jam absen masuk Anda.
                 </p>
               </div>
             )}
@@ -290,7 +303,7 @@ export const EmployeeDashboardPage = () => {
             )}
           </div>
 
-          {/* Tombol Aksi Masuk / Pulang (Interaktif Fase 3) */}
+          {/* Tombol Aksi Masuk / Pulang (Live API) */}
           <div className="w-full md:w-auto flex flex-col sm:flex-row gap-2.5">
             {/* Tombol Absen Masuk */}
             <Button
@@ -313,7 +326,9 @@ export const EmployeeDashboardPage = () => {
               variant={todayStatus.status === 'SUDAH_MASUK' ? 'primary' : 'outline'}
               size="lg"
               className={`flex-1 sm:flex-none justify-center ${
-                todayStatus.status === 'SUDAH_MASUK' ? 'shadow-float bg-indigo-600 hover:bg-indigo-700 text-white' : 'text-slate-400 border-slate-200'
+                todayStatus.status === 'SUDAH_MASUK'
+                  ? 'shadow-float bg-indigo-600 hover:bg-indigo-700 text-white'
+                  : 'text-slate-400 border-slate-200'
               }`}
               disabled={todayStatus.status !== 'SUDAH_MASUK'}
               onClick={() => handleOpenVerification('CHECK_OUT')}
@@ -344,26 +359,26 @@ export const EmployeeDashboardPage = () => {
             </div>
             <p className="font-medium text-emerald-700 flex items-center gap-1">
               <IconCheckCircle className="w-3.5 h-3.5" />
-              Aktif (Tanpa Geofence)
+              Aktif (Mandatori SOT)
             </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Koordinat dicatat ke transaksi</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Koordinat dicatat ke database</p>
           </div>
 
           <div className="p-3 rounded-xl bg-white border border-slate-200/80">
             <div className="flex items-center gap-2 text-slate-500 mb-1">
-              <IconCheckCircle className="w-4 h-4 text-blue-600" />
-              <span className="font-semibold text-slate-700">Evaluasi Pulang</span>
+              <IconShield className="w-4 h-4 text-blue-600" />
+              <span className="font-semibold text-slate-700">Bulan Ini</span>
             </div>
-            <p className="font-medium text-blue-700">Kurang / Lebih 8j 30m</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Tercatat otomatis pada laporan</p>
+            <p className="font-medium text-blue-700">{monthlySummary.total_sessions} Sesi ({monthlySummary.total_hours} Jam)</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Target tercapai: {monthlySummary.meets_minimum_count} hari</p>
           </div>
         </div>
       </Card>
 
-      {/* Riwayat Absensi Terakhir */}
+      {/* Riwayat Absensi Terakhir Real dari API */}
       <Card
         title="Riwayat Kehadiran Terbaru"
-        subtitle="3 transaksi absensi terakhir Anda"
+        subtitle="Transaksi absensi terakhir Anda dari server"
         action={
           <button
             onClick={() => navigateTo('history')}
@@ -375,47 +390,48 @@ export const EmployeeDashboardPage = () => {
         }
       >
         <div className="divide-y divide-slate-100">
-          {recentHistory.map((item) => (
-            <div
-              key={item.id}
-              className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <IconCheckCircle className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-900">
-                      {item.date}
-                    </span>
-                    <Badge
-                      variant={
-                        item.status === 'TEPAT_WAKTU' ? 'success' : 'warning'
-                      }
-                      size="sm"
-                    >
-                      {item.statusLabel}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                    <span>Masuk: {item.checkIn || '-'}</span>
-                    <span>•</span>
-                    <span>Pulang: {item.checkOut || '-'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right pl-12 sm:pl-0">
-                <span className="text-[11px] font-mono text-slate-400 block">
-                  GPS: {item.coordinates.latitude}, {item.coordinates.longitude}
-                </span>
-                <span className="text-[10px] text-emerald-600 block">
-                  Akurasi: ±{item.coordinates.accuracy_m}m • Server Recorded
-                </span>
-              </div>
+          {historyList.length === 0 ? (
+            <div className="py-6 text-center text-xs text-slate-400">
+              Belum ada riwayat kehadiran tercatat di sistem.
             </div>
-          ))}
+          ) : (
+            historyList.slice(0, 3).map((item) => (
+              <div
+                key={item.id}
+                className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <IconCheckCircle className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900">
+                        {item.date}
+                      </span>
+                      <Badge variant={item.variant} size="sm">
+                        {item.statusLabel}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                      <span>Masuk: {item.checkIn || '-'}</span>
+                      <span>•</span>
+                      <span>Pulang: {item.checkOut || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right pl-12 sm:pl-0">
+                  <span className="text-[11px] font-mono text-slate-400 block">
+                    ID Transaksi: {item.id}
+                  </span>
+                  <span className="text-[10px] text-emerald-600 block">
+                    {item.notes || 'Tercatat di Server Mandala'}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </Card>
     </div>

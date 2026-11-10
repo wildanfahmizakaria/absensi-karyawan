@@ -173,12 +173,12 @@ export const AttendanceVerificationModal = ({
               <h2 id="modal-verification-title" className="text-base sm:text-lg font-bold text-slate-900">
                 Verifikasi {actionTitle}
               </h2>
-              <Badge variant="warning" size="sm">
-                SIMULASI FASE 1
+              <Badge variant="success" size="sm">
+                Live GPS & Kamera
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              CV Mandala Mahardika • Kamera & Lokasi Mode Mock SOT Fase 1
+              CV Mandala Mahardika • Verifikasi Kamera Live & Perekaman GPS
             </p>
           </div>
           <button

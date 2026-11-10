@@ -43,8 +43,8 @@ export const EmployeeManagementPage = () => {
   // Fetch employees
   const loadEmployees = async () => {
     setIsLoading(true);
-    const data = await employeeApi.getEmployees();
-    setEmployees(data);
+    const res = await employeeApi.getEmployees();
+    setEmployees(res.data || []);
     setIsLoading(false);
   };
 
@@ -96,15 +96,22 @@ export const EmployeeManagementPage = () => {
 
     if (editingEmployee) {
       // Edit
-      await employeeApi.updateEmployee(
+      const res = await employeeApi.updateEmployee(
         editingEmployee.id,
-        formData,
-        currentUser?.name || 'Admin'
+        formData
       );
+      if (!res.success) {
+        setFormError(res.error || 'Gagal memperbarui data karyawan.');
+        return;
+      }
       setEditingEmployee(null);
     } else {
       // Tambah baru
-      await employeeApi.addEmployee(formData, currentUser?.name || 'Admin');
+      const res = await employeeApi.addEmployee(formData);
+      if (!res.success) {
+        setFormError(res.error || 'Gagal menambahkan karyawan.');
+        return;
+      }
       setShowAddModal(false);
     }
 
@@ -316,8 +323,8 @@ export const EmployeeManagementPage = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Manajemen Data Karyawan
             </h1>
-            <Badge variant="mock" size="sm">
-              Fase 4: Operasional
+            <Badge variant="success" size="sm">
+              Live API
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">

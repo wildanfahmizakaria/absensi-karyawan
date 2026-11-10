@@ -4,7 +4,6 @@ import { useNavigation } from '../context/NavigationContext';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
-import { MOCK_AUTH_ACCOUNTS } from '../data/mockData';
 import {
   IconBuilding,
   IconEye,
@@ -23,12 +22,12 @@ export const LoginPage = () => {
 
   // State Role Akses (Default: employee)
   const [selectedRole, setSelectedRole] = useState('employee');
-  const [email, setEmail] = useState('karyawan@mandalamahardika.com');
-  const [password, setPassword] = useState('karyawan123');
+  const [email, setEmail] = useState('budi.santoso@mandalamahardika.com');
+  const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Konfigurasi Role Akses
+  // Konfigurasi Role Akses Resmi Produksi
   const ROLE_OPTIONS = [
     {
       id: 'employee',
@@ -41,8 +40,8 @@ export const LoginPage = () => {
       activeIconBg: 'bg-blue-600 text-white',
       inactiveIconBg: 'bg-slate-100 text-slate-500',
       description: 'Presensi live camera & GPS, riwayat kehadiran pribadi, dan rekapitulasi shift.',
-      defaultEmail: 'karyawan@mandalamahardika.com',
-      defaultPassword: 'karyawan123',
+      defaultEmail: 'budi.santoso@mandalamahardika.com',
+      defaultPassword: 'password123',
     },
     {
       id: 'admin',
@@ -56,7 +55,7 @@ export const LoginPage = () => {
       inactiveIconBg: 'bg-slate-100 text-slate-500',
       description: 'Pemantauan presensi harian, manajemen data karyawan, verifikasi, dan ekspor CSV.',
       defaultEmail: 'admin@mandalamahardika.com',
-      defaultPassword: 'admin123',
+      defaultPassword: 'password123',
     },
     {
       id: 'superadmin',
@@ -68,9 +67,9 @@ export const LoginPage = () => {
       activeColor: 'border-rose-600 bg-rose-50/70 text-rose-950 ring-2 ring-rose-500/20',
       activeIconBg: 'bg-rose-600 text-white',
       inactiveIconBg: 'bg-slate-100 text-slate-500',
-      description: 'Audit trail aktivitas lengkap, konfigurasi jam kerja tetap, dan analitik eksekutif.',
+      description: 'Audit trail aktivitas lengkap, konfigurasi jam kerja fleksibel, dan analitik eksekutif.',
       defaultEmail: 'superadmin@mandalamahardika.com',
-      defaultPassword: 'superadmin123',
+      defaultPassword: 'password123',
     },
   ];
 
@@ -82,7 +81,7 @@ export const LoginPage = () => {
     setErrorMsg('');
   };
 
-  // Validasi format email sederhana
+  // Validasi format email
   const isValidEmail = (val) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
   };
@@ -111,7 +110,7 @@ export const LoginPage = () => {
       // Alihkan langsung ke dashboard sesuai peran akun
       navigateTo(getDefaultPageForRole(loggedUser.role));
     } catch (err) {
-      setErrorMsg(err.message || 'Terjadi kegagalan saat login. Silakan coba lagi.');
+      setErrorMsg(err.message || 'Terjadi kegagalan saat login. Silakan periksa kembali email dan sandi Anda.');
     }
   };
 
@@ -129,7 +128,7 @@ export const LoginPage = () => {
             CV Mandala Mahardika
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-            Sistem Absensi Karyawan Mobile-First (SOT v0.2)
+            Sistem Absensi Karyawan Berbasis Web (Mobile-First / PWA)
           </p>
         </div>
 
@@ -140,14 +139,14 @@ export const LoginPage = () => {
               Masuk ke Sistem
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Pilih peran akses Anda dan masukkan kredensial untuk melanjutkan
+              Pilih peran akses akun Anda dan masukkan kredensial untuk melanjutkan
             </p>
           </div>
 
           {/* Bagian Pilihan Role Akses */}
           <div className="mb-5">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Pilih Role Akses:
+              Pilih Akun Demo / Akses:
             </label>
             <div className="grid grid-cols-3 gap-2">
               {ROLE_OPTIONS.map((role) => {
@@ -240,17 +239,6 @@ export const LoginPage = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Kata Sandi
                 </label>
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() =>
-                    alert(
-                      'Simulasi Pemulihan: Di lingkungan produksi nyata, token reset kata sandi dikirimkan ke email terdaftar.'
-                    )
-                  }
-                >
-                  Lupa sandi?
-                </button>
               </div>
               <div className="relative">
                 <input
@@ -292,21 +280,21 @@ export const LoginPage = () => {
                 className="py-3 font-bold"
               >
                 {isLoadingAuth
-                  ? 'Memverifikasi Kredensial...'
+                  ? 'Menghubungkan ke Server...'
                   : `Masuk sebagai ${activeRoleConfig.label}`}
               </Button>
             </div>
           </form>
 
-          {/* Tautan Beralih ke Registrasi */}
+          {/* Tautan Beralih ke Informasi Registrasi */}
           <div className="mt-6 pt-5 border-t border-slate-100 text-center text-xs text-slate-600">
-            Belum memiliki akun karyawan?{' '}
+            Belum memiliki kredensial akun?{' '}
             <button
               type="button"
               onClick={() => navigateTo('register')}
               className="font-bold text-primary hover:underline ml-1"
             >
-              Daftar Akun Baru
+              Info Pendaftaran Akun
             </button>
           </div>
         </Card>
@@ -315,7 +303,7 @@ export const LoginPage = () => {
         <div className="mt-5 text-center text-xs text-slate-500">
           <p>© {new Date().getFullYear()} CV Mandala Mahardika • Hak Cipta Dilindungi</p>
           <p className="mt-1 text-[11px] text-slate-400">
-            Sistem Absensi Karyawan Terverifikasi (Kamera Live + GPS Mandatori SOT v0.2)
+            Terhubung ke API Backend Produksi (Railway Live Service)
           </p>
         </div>
       </div>

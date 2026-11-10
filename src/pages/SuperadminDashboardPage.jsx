@@ -71,8 +71,8 @@ export const SuperadminDashboardPage = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Dashboard Manajemen Sistem Superadmin
             </h1>
-            <Badge variant="mock" size="sm">
-              Fase 4: Operasional
+            <Badge variant="success" size="sm">
+              Live API
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">

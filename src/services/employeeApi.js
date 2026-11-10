@@ -1,116 +1,152 @@
-import { MOCK_EMPLOYEES_LIST } from '../data/mockData';
-import { auditApi } from './auditApi';
+/**
+ * employeeApi.js — Service Manajemen Karyawan (CRUD Admin & Superadmin)
+ * Mengonsumsi REST API Backend Produksi:
+ * - GET    /admin/employees (List Karyawan terfilter)
+ * - POST   /admin/employees (Tambah Karyawan Baru)
+ * - GET    /admin/employees/:id (Detail Karyawan)
+ * - PATCH  /admin/employees/:id (Perbarui Data Karyawan)
+ * - DELETE /admin/employees/:id (Nonaktifkan Karyawan)
+ */
+
 import { apiClient } from './apiClient';
 
-const STORAGE_KEY_EMPLOYEES = 'mandala_employees_list';
+const mapRoleToBackend = (uiRole) => {
+  if (!uiRole) return 'EMPLOYEE';
+  const r = uiRole.toUpperCase();
+  if (r === 'ADMIN') return 'ADMIN';
+  if (r === 'SUPERADMIN') return 'SUPERADMIN';
+  return 'EMPLOYEE';
+};
+
+const mapRoleToUI = (backendRole) => {
+  if (!backendRole) return 'Karyawan';
+  const r = backendRole.toUpperCase();
+  if (r === 'SUPERADMIN') return 'Superadmin';
+  if (r === 'ADMIN') return 'Admin';
+  return 'Karyawan';
+};
 
 export const employeeApi = {
-  getEmployees: async () => {
-    if (!apiClient.isMockMode()) {
-      return apiClient.get('/employees');
+  /**
+   * Mengambil daftar seluruh karyawan dengan parameter filter
+   */
+  getEmployees: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.append('page', params.page);
+    query.append('limit', params.limit || '50');
+    if (params.search) query.append('search', params.search);
+    if (params.role && params.role !== 'ALL') query.append('role', mapRoleToBackend(params.role));
+    if (params.isActive !== undefined && params.isActive !== 'ALL') {
+      query.append('is_active', params.isActive ? '1' : '0');
     }
 
-    await new Promise((r) => setTimeout(r, 200));
-    try {
-      const stored = sessionStorage.getItem(STORAGE_KEY_EMPLOYEES);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      // fallback
+    const res = await apiClient.get(`/admin/employees?${query.toString()}`);
+
+    if (res.error) {
+      return { data: [], meta: res.meta || {}, error: res.error };
     }
-    return MOCK_EMPLOYEES_LIST;
+
+    const rawList = res.data || [];
+    const formattedList = rawList.map((emp) => ({
+      id: emp.id,
+      code: emp.employee_code,
+      name: emp.full_name,
+      email: emp.email,
+      department: emp.department || 'Operasional',
+      role: mapRoleToUI(emp.role),
+      rawRole: emp.role,
+      status: emp.is_active ? 'Aktif' : 'Nonaktif',
+      isActive: Boolean(emp.is_active),
+      joinDate: emp.created_at
+        ? new Date(emp.created_at).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          })
+        : '-',
+    }));
+
+    return {
+      data: formattedList,
+      meta: res.meta || { total: formattedList.length },
+      error: null,
+    };
   },
 
-  addEmployee: async (employeeData, actorName = 'Admin') => {
-    if (!apiClient.isMockMode()) {
-      return apiClient.post('/employees', employeeData);
-    }
+  /**
+   * Detail Karyawan berdasarkan ID
+   */
+  getEmployeeById: async (id) => {
+    return apiClient.get(`/admin/employees/${id}`);
+  },
 
-    await new Promise((r) => setTimeout(r, 300));
-    const currentList = await employeeApi.getEmployees();
-
-    const newEmployee = {
-      id: employeeData.id || `EMP-${String(currentList.length + 1).padStart(3, '0')}`,
-      name: employeeData.name,
+  /**
+   * Tambah Karyawan Baru (Create)
+   */
+  addEmployee: async (employeeData) => {
+    const payload = {
+      employee_code: employeeData.code || employeeData.employee_code || `EMP-${Date.now().toString().slice(-4)}`,
+      full_name: employeeData.name || employeeData.full_name,
       email: employeeData.email,
-      department: employeeData.department || 'Operasional',
-      role: employeeData.role || 'Karyawan',
-      status: employeeData.status || 'Aktif',
-      joinDate: new Date().toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
+      password: employeeData.password || 'password123',
+      role: mapRoleToBackend(employeeData.role),
     };
 
-    const updatedList = [...currentList, newEmployee];
-    sessionStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updatedList));
+    const res = await apiClient.post('/admin/employees', payload);
 
-    // Audit log
-    await auditApi.logAction(
-      actorName,
-      'CREATE_EMPLOYEE',
-      `Penambahan karyawan baru: ${newEmployee.name} (${newEmployee.id}) - Divisi ${newEmployee.department}`
-    );
+    if (res.error) {
+      return { success: false, error: res.error.message || 'Gagal menambahkan karyawan.' };
+    }
 
-    return { success: true, data: newEmployee };
+    return { success: true, data: res.data?.employee, message: res.data?.message };
   },
 
-  updateEmployee: async (id, updatedFields, actorName = 'Admin') => {
-    if (!apiClient.isMockMode()) {
-      return apiClient.put(`/employees/${id}`, updatedFields);
+  /**
+   * Perbarui Data Karyawan (Update)
+   */
+  updateEmployee: async (id, updatedFields) => {
+    const payload = {};
+    if (updatedFields.name || updatedFields.full_name) {
+      payload.full_name = updatedFields.name || updatedFields.full_name;
+    }
+    if (updatedFields.email) payload.email = updatedFields.email;
+    if (updatedFields.role) payload.role = mapRoleToBackend(updatedFields.role);
+    if (updatedFields.status !== undefined) {
+      payload.is_active = updatedFields.status === 'Aktif' || updatedFields.status === 1 ? 1 : 0;
+    } else if (updatedFields.isActive !== undefined) {
+      payload.is_active = updatedFields.isActive ? 1 : 0;
+    }
+    if (updatedFields.password) payload.password = updatedFields.password;
+
+    const res = await apiClient.patch(`/admin/employees/${id}`, payload);
+
+    if (res.error) {
+      return { success: false, error: res.error.message || 'Gagal memperbarui data karyawan.' };
     }
 
-    await new Promise((r) => setTimeout(r, 300));
-    const currentList = await employeeApi.getEmployees();
-
-    const index = currentList.findIndex((e) => e.id === id);
-    if (index === -1) {
-      return { success: false, error: 'Karyawan tidak ditemukan.' };
-    }
-
-    const updatedEmployee = { ...currentList[index], ...updatedFields };
-    currentList[index] = updatedEmployee;
-
-    sessionStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(currentList));
-
-    // Audit log
-    await auditApi.logAction(
-      actorName,
-      'UPDATE_EMPLOYEE',
-      `Pembaruan data karyawan: ${updatedEmployee.name} (${updatedEmployee.id})`
-    );
-
-    return { success: true, data: updatedEmployee };
+    return { success: true, data: res.data?.employee, message: res.data?.message };
   },
 
-  toggleEmployeeStatus: async (id, newStatus, actorName = 'Admin') => {
-    if (!apiClient.isMockMode()) {
-      return apiClient.put(`/employees/${id}/status`, { status: newStatus });
+  /**
+   * Nonaktifkan Akun Karyawan (Delete / Soft Deactivate)
+   */
+  toggleEmployeeStatus: async (id, newStatus) => {
+    const isActivating = newStatus === 'Aktif';
+
+    if (!isActivating) {
+      // Panggil endpoint DELETE untuk soft-deactivate
+      const res = await apiClient.delete(`/admin/employees/${id}`);
+      if (res.error) {
+        return { success: false, error: res.error.message || 'Gagal menonaktifkan akun karyawan.' };
+      }
+      return { success: true, message: res.data?.message };
+    } else {
+      // Re-aktifkan via PATCH
+      const res = await apiClient.patch(`/admin/employees/${id}`, { is_active: 1 });
+      if (res.error) {
+        return { success: false, error: res.error.message || 'Gagal mengaktifkan akun karyawan.' };
+      }
+      return { success: true, message: res.data?.message };
     }
-
-    await new Promise((r) => setTimeout(r, 250));
-    const currentList = await employeeApi.getEmployees();
-
-    const index = currentList.findIndex((e) => e.id === id);
-    if (index === -1) {
-      return { success: false, error: 'Karyawan tidak ditemukan.' };
-    }
-
-    const emp = currentList[index];
-    emp.status = newStatus;
-    currentList[index] = emp;
-
-    sessionStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(currentList));
-
-    // Audit log
-    await auditApi.logAction(
-      actorName,
-      newStatus === 'Nonaktif' ? 'DEACTIVATE_EMPLOYEE' : 'ACTIVATE_EMPLOYEE',
-      `Perubahan status karyawan ${emp.name} (${emp.id}) menjadi ${newStatus}`
-    );
-
-    return { success: true, data: emp };
   },
 };

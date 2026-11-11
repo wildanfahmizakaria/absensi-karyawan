@@ -11,7 +11,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 export const useCamera = () => {
   const [stream, setStream] = useState(null);
-  const [status, setStatus] = useState('idle'); // 'idle' | 'requesting' | 'active' | 'error'
+  const [status, setStatus] = useState('active'); // 'idle' | 'requesting' | 'active' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [facingMode, setFacingMode] = useState('user');
   const videoRef = useRef(null);
